@@ -1,9 +1,31 @@
 mutable struct SVAR{T} <: EmpiricalModel
-    var::VAR{T}
+    Yfull::Matrix{T}
+    p::Int
+
+    Y::Matrix{T}
+    X::Matrix{T}
+    k::Int
+    T::Int
+    Te::Int
+
+    Phi::Union{Nothing,Matrix{T}}
+    Sigma::Union{Nothing,Matrix{T}}
+    # coeftable::Union{Nothing,DataFrames.DataFrame}
+    E::Union{Nothing,Matrix{T}}
+
+    Phi_blocks::Union{Nothing,Vector{Matrix{T}}}
+    F::Union{Nothing,Matrix{T}}
+    Q::Union{Nothing,Matrix{T}}
+
     A::Union{Nothing,Matrix{T}}
     C1::Union{Nothing,Matrix{T}}
     scheme::Symbol
 end
+
+function SVAR(Yfull::AbstractMatrix{T}, A::AbstractMatrix{T}; p::Int, scheme::Symbol=:none) where {T<:Real}
+    Y, X = lagmatrix(Yfull, p)
+    T, k = size(Yfull)
+
 
 function SVAR(var::VAR{T}; scheme::Symbol=:none) where {T}
     C1 = nothing
