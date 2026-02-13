@@ -8,26 +8,17 @@
 
 # %% helper functions
 
-"""
-function lagmatrix(Y::Matrix, p::Int)
-    ...
-    return X, Ytrim
-end
-
-Given a matrix of time series variables, outputs the p - 1 scaled dependent variable matrix and the progressively-lagged (from t - 1 to t - p) explanatory variable matrix as a tuple.
-
-Ensure data is fed in ascending order (t = 1 is earliest date).
-"""
 function lagmatrix(Y::Matrix{Float64}, p::Int)
-    Ymat = ndims(Y) == 1 ? reshape(Y, :, 1) : Y
-    T, k = size(Ymat)
-    @assert T > p "More lags than observations"
+    Y = ndims(Y) == 1 ? reshape(Y, :, 1) : Y
+    t, k = size(Y)
+    @assert t > p "More lags than observations"
 
-    Ytrim = Ymat[p+1:end, :]
+    X = fill(NaN, t, k * p)
 
-    X = Matrix{eltype(Y)}(hcat([ShiftedArrays.lag(Y, lag)[p+1:T, :] for lag in 1:p]...))
-
-    return (Ytrim=Ytrim, X=X)
+    for i in 1:p
+        @views X[(i+1):t, (1:k).+k*(i-1)] .= Y[1:(t-i), :]
+    end
+    return @views Y[p+1:end, :], @views X[p+1:end, :]
 end
 
 # %%
@@ -43,37 +34,35 @@ function estimate!(var::VAR)
     Y = var.Y
     k = var.k
     p = var.p
-    T = var.T
-    lower = hcat(Matrix(I(k * p - k)), zeros(Float64, (k * p - k, k * p - k)))
-    names = var.varnames
-    phinames = Symbol[]
-    for lag in 1:var.p
-        for nm in names
-            push!(phinames, Symbol("$(nm)_L$(lag)"))
-        end
-    end
+    t = var.t
+
     Phi = X \ Y
-
-    coeftable = hcat(
-        DataFrames.DataFrame(term=phinames),
-        DataFrames.DataFrame(Phi, names)
-    )
-
-    R = Y .- X * Phi
-    Sigma = R'R ./ (T - p * k)
-
-    # F = vcat(Phi', lower)
+    E = Y .- X * Phi
+    sdn = 1 / (t - p * k)
 
     var.Phi = Phi
-    var.Sigma = Sigma
-    var.coeftable = coeftable
-    var.residuals = R
-    # var.F = F
+    var.E = E
+    var.Sigma = E'E .* sdn
 
     return nothing
 end
 
 # %%
+
+function phiblocks(var::VAR)
+    k = var.k
+    p = var.p
+
+    lagnames = Vector{Symbol}(undef, p)
+    Phis = Vector{AbstractMatrix{Float64}}(undef, p)
+    for lag in 1:p
+        lagnames[lag] = Symbol("lag", lag)
+        Phis[lag] = @view var.Phi[(1:k).+(lag-1)*k, :]
+    end
+
+    return ComponentArray(; zip(lagnames, Phis)...)
+end
+
 """
 function companion!(var::VAR)
     ...
@@ -83,26 +72,30 @@ Given a var element, calculates its companion-form F matrix and Q matrix.
 
 ensure "estimate!" has been called first.
 """
-
-function companion!(var::VAR{T}) where {T}
+function companion!(var::VAR)
     k = var.k
     p = var.p
+    T = eltype(var.Y)
+    kp = k * p
     Phi = var.Phi
 
-    Phi_blocks = [Phi[(i-1)*k+1:i*k, :] for i in 1:p]
+    # F
+    F = zeros(T, kp, kp)
+    IF = I(kp - k)
 
-    F = zeros(T, k * p, k * p)
-
-    F[1:k, 1:k*p] = hcat(Phi_blocks...)
-
-    if p > 1
-        F[k+1:end, 1:k*(p-1)] = I(k * (p - 1))
+    for i in 1:p
+        lag = (i - 1) * k
+        F[1:k, (1:k).+lag] = @view Phi[(1:k).+lag, :]
     end
 
-    Q = zeros(T, k * p, k * p)
+    if p > 1
+        F[k+1:end, 1:kp-k] = IF
+    end
+
+    # Q
+    Q = zeros(T, kp, kp)
     Q[1:k, 1:k] .= var.Sigma
 
-    var.Phi_blocks = Phi_blocks
     var.F = F
     var.Q = Q
 
@@ -147,40 +140,40 @@ end
 
 # %%
 
-function longrun_impact(var::VAR{T}) where {T}
-    Φs = var.Phi_blocks
-    isnothing(Φs) && error("Phi_blocks is not computed. Run companion! on the VAR first.")
+# function longrun_impact(var::VAR{T}) where {T}
+#     Φs = var.Phi_blocks
+#     isnothing(Φs) && error("Phi_blocks is not computed. Run companion! on the VAR first.")
 
-    k = size(Φs[1], 1)
+#     k = size(Φs[1], 1)
 
-    S = zero(Φs[1])
-    for Φ in Φs
-        S .+= Φ
-    end
+#     S = zero(Φs[1])
+#     for Φ in Φs
+#         S .+= Φ
+#     end
 
-    C1 = inv(I(k) - S)
-    return C1
-end
+#     C1 = inv(I(k) - S)
+#     return C1
+# end
 
 
 # %%
 
-function irf(s::SVAR{T}; horizon::Int=20) where {T}
-    isnothing(s.A) && error("SVAR is not identified. A matrix is missing.")
+# function irf(s::SVAR{T}; horizon::Int=20) where {T}
+#     isnothing(s.A) && error("SVAR is not identified. A matrix is missing.")
 
-    F = s.var.F
-    A = s.A
-    k = s.var.k
+#     F = s.var.F
+#     A = s.A
+#     k = s.var.k
 
-    IRFs = Array{T}(undef, k, k, horizon + 1)
+#     IRFs = Array{T}(undef, k, k, horizon + 1)
 
-    IRFs[:, :, 1] = A
+#     IRFs[:, :, 1] = A
 
-    Fpow = I(size(F, 1))
-    for h in 1:horizon
-        Fpow = Fpow * F
-        IRFs[:, :, h+1] = Fpow[1:k, 1:k] * A
-    end
+#     Fpow = I(size(F, 1))
+#     for h in 1:horizon
+#         Fpow = Fpow * F
+#         IRFs[:, :, h+1] = Fpow[1:k, 1:k] * A
+#     end
 
-    return IRFs
-end
+#     return IRFs
+# end

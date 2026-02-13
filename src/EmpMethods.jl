@@ -2,29 +2,25 @@
 
 module EmpMethods
 
-import Statistics
-import DataFrames
-import LinearAlgebra: I, Diagonal, kron, sqrt, diag, cholesky, diagm
-import ShiftedArrays
-import ComponentArrays
-import Tables
+using Statistics, DataFrames, ShiftedArrays, StaticArrays, LinearAlgebra, ComponentArrays
 
 abstract type EmpiricalModel end
 
 include("VAR.jl")
-include("SVAR.jl")
+# include("SVAR.jl")
 include("utils.jl")
 
 export VAR
-export SVAR
+# export SVAR
 export lagmatrix
 export estimate!
+export phiblocks
 export companion!
 export autocov!
 export autocorr!
-export longrun_impact
-export irf
-export bootstrap
+# export longrun_impact
+# export irf
+# export bootstrap
 
 end
 
