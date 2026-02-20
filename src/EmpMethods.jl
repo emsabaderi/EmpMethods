@@ -2,16 +2,16 @@
 
 module EmpMethods
 
-using Statistics, DataFrames, ShiftedArrays, StaticArrays, LinearAlgebra, ComponentArrays
+using Statistics, DataFrames, ShiftedArrays, StaticArrays, LinearAlgebra, ComponentArrays, MatrixEquations
 
 abstract type EmpiricalModel end
 
 include("VAR.jl")
-# include("SVAR.jl")
+include("SVAR.jl")
 include("utils.jl")
 
-export VAR
-# export SVAR
+export VAR, Phi, Sigma, E, F, Q, Gamma, Rho, Y, X, k, p, t
+export SVAR
 export lagmatrix
 export estimate!
 export phiblocks
