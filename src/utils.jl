@@ -83,9 +83,8 @@ function companion!(var::VAR)
     F = zeros(T, kp, kp)
     IF = I(kp - k)
 
-    for i in 1:p
-        lag = (i - 1) * k
-        F[1:k, (1:k).+lag] = @view Phi[(1:k).+lag, :]
+    for i in 0:(p-1)
+        F[1:k, (1:k).+i*k] = @view Phi[(1:k).+i*k, :]
     end
 
     if p > 1
@@ -105,25 +104,32 @@ end
 
 # %%
 
+
 function autocov!(var::VAR; H=20)
     F = var.F
     Q = var.Q
     k = var.k
-    p = var.p
-    kp = k * p
+    kp = k * var.p
 
-    A = I(kp^2) - kron(F, F)
-    Γ0_vec = A \ vec(Q)
-    Γ0 = reshape(Γ0_vec, kp, kp)
+    Γ0 = lyapd(F, Q)
 
-    var.Gamma = Vector{Matrix{Float64}}(undef, H + 1)
-    var.Gamma[1] = Γ0[1:k, 1:k]
+    # Preallocate
+    Gamma = Vector{Matrix{Float64}}(undef, H + 1)
+    Gamma[1] = Γ0[1:k, 1:k]
+
+    Fh = Matrix{Float64}(I, kp, kp)
+    Fhtmp = similar(Fh)
+    Γx = similar(Γ0)
 
     for h in 1:H
-        Γx = F^h * Γ0
-        var.Gamma[h+1] = Γx[1:k, 1:k]
+        mul!(Fhtmp, Fh, F)
+        Fh, Fhtmp = Fhtmp, Fh
+        mul!(Γx, Fh, Γ0)
+        # Γx = Fh * Γ0
+        Gamma[h+1] = Γx[1:k, 1:k]
     end
 
+    var.Gamma = Gamma
     return nothing
 end
 
