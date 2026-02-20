@@ -19,8 +19,6 @@ mutable struct VAR{T<:Real,M<:AbstractMatrix{T},V<:AbstractMatrix{T}} <: Empiric
     Rho::Union{Nothing,Vector{AbstractMatrix{T}}}
 end
 
-
-
 # %% Constructors
 
 function VAR(Yfull::M, p::Int64, varnames::Vector{Symbol}) where {T<:Real,M<:AbstractMatrix{T}}
@@ -53,3 +51,16 @@ end
 function VAR(y::Vector, p::Int)
     return VAR(reshape(y, :, 1), p, [:y])
 end
+
+Phi(v::VAR) = v.Phi
+Sigma(v::VAR) = v.Sigma
+E(v::VAR) = v.E
+F(v::VAR) = v.F
+Q(v::VAR) = v.Q
+Gamma(v::VAR) = v.Gamma
+Rho(v::VAR) = v.Rho
+Y(v::VAR) = v.Y
+X(v::VAR) = v.X
+k(v::VAR) = v.k
+p(v::VAR) = v.p
+t(v::VAR) = v.t
