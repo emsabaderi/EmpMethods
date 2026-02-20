@@ -6,7 +6,7 @@ using BenchmarkTools
 using Random
 using DataFrames
 using Statistics
-
+using StaticArrays
 
 # %%
 
@@ -16,27 +16,29 @@ using EmpMethods
 # %% Test controlled inputs
 # ============================================================================
 
-Random.seed!(654)
+Random.seed!(634)
 p, k = 3, 2;
-Y = rand(Float64, 100, k);
-
+Y = rand(-1:0.01:1, 100, k);
 # %%
-
-@btime lagmatrix1(Y, p)
-
+myvar = VAR(Y, p, [:var1, :var2]);
+estimate!(myvar)
+companion!(myvar)
+autocov!(myvar)
+autocorr!(myvar)
 # %%
-
-@btime lagmatrix2(Y, p)
-
+@btime myvar = VAR(Y, p, [:var1, :var2]);
 # %%
-myvar = VAR(Y; p=p, varnames=[:var1, :var2]);
+@btime estimate!(myvar);
 # %%
-@btime estimate!(myvar)
-
+@btime companion!(myvar);
 # %%
-
-myvar.Phi
-
+@btime phiblocks(myvar);
+# %%
+@btime autocov!(myvar);
+# %%
+@btime autocorr!(myvar);
+# %%
+mysvar = SVAR(Y, p, [:var1, :var2], [1 0; 1 1])
 # %%
 # ============================================================================
 # Test random inputs
