@@ -8,7 +8,7 @@
 
 # %% helper functions
 
-@views function lagmatrix(Y::AbstractMatrix{T}, p::Int) where {T<:Real}
+function lagmatrix(Y::AbstractMatrix{T}, p::Int) where {T<:Real}
     t, k = size(Y)
     @assert t > p "More lags than observations"
     n = t - p
@@ -50,9 +50,10 @@ end
 function phiblocks(var::VAR)
     k = var.k
     p = var.p
+    T = eltype(var.Y)
 
     lagnames = Vector{Symbol}(undef, p)
-    Phis = Vector{AbstractMatrix{Float64}}(undef, p)
+    Phis = Vector{AbstractMatrix{T}}(undef, p)
     for lag in 1:p
         lagnames[lag] = Symbol("lag", lag)
         Phis[lag] = @view var.Phi[(1:k).+(lag-1)*k, :]
@@ -108,14 +109,15 @@ function autocov!(var::VAR; H=20)
     Q = var.Q
     k = var.k
     kp = k * var.p
+    T = eltype(var.Y)
 
     Γ0 = lyapd(F, Q)
 
     # Preallocate
-    Gamma = Vector{Matrix{Float64}}(undef, H + 1)
+    Gamma = Vector{Matrix{T}}(undef, H + 1)
     Gamma[1] = Γ0[1:k, 1:k]
 
-    Fh = Matrix{Float64}(I, kp, kp)
+    Fh = Matrix{T}(I, kp, kp)
     Fhtmp = similar(Fh)
     Γx = similar(Γ0)
 
@@ -154,9 +156,29 @@ end
 
 function shortrun!(svar::SVAR)
     Sigma = svar.var.Sigma
-    svar.A = chol(Sigma)
+    E = svar.var.E
+    svar.A = cholesky(Sigma).L
+    svar.U = (svar.A \ E')'
+    return nothing
 end
 
+function longrun!(svar::SVAR)
+    all(abs.(eigvals(svar.var.F)) .< 1) ||
+        throw(ArgumentError("VAR object is not stationary. Long-run identification requires eigenvalues of VAR companion matrix to be within the unit circle"))
+    Σ = Sigma(svar)
+    blocks = phiblocks(svar.var)
+    PhiSum = sum(blocks[lag] for lag in keys(blocks))
+    IminPhi = I - PhiSum
+    Q = IminPhi \ (Σ / IminPhi')
+    Q = (Q + Q') / 2
+    @show IminPhi
+    @show Q
+    @show issymmetric(Q)
+    @show isposdef(Q)
+    svar.A = IminPhi * cholesky(Q).L
+    svar.U = (svar.A \ E(svar)')'
+    return nothing
+end
 
 # %%
 
