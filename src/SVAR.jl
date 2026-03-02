@@ -1,30 +1,29 @@
-mutable struct SVAR{T<:Real,AType<:AbstractMatrix{T}} <: EmpiricalModel
+mutable struct SVAR{T<:Real} <: EmpiricalModel
     var::VAR{T}
-    A::AType
-    impact::Union{Nothing,Matrix{T}}  # structural impact matrix (A^{-1}, A^{-1}P, etc.)
+    A::Union{AbstractMatrix,Nothing}
+    U::Union{AbstractMatrix,Nothing}
 end
 
-function SVAR(var::VAR{T}, A::AbstractMatrix) where {T}
-    Afloat = Array{T}(A)
-    SVAR{T,typeof(Afloat)}(var, Afloat, nothing)
+function SVAR(var::VAR{T}) where {T<:Real}
+    return SVAR{T}(var, nothing, nothing)
 end
 
-function SVAR(Yfull::AbstractMatrix{T}, p::Int, names, A::AbstractMatrix) where {T}
+function SVAR(Yfull::AbstractMatrix{T}, p::Int, names::Vector{Symbol}) where {T<:Real}
     var = VAR(Yfull, p, names)
     estimate!(var)
     companion!(var)
     autocov!(var)
     autocorr!(var)
-    SVAR(var, A)
+    return SVAR(var)
 end
 
-function SVAR(Ytable, p::Int, A::AbstractMatrix) where {T}
+function SVAR(Ytable, p::Int, A::AbstractMatrix) where {T<:Real}
     Tables.istable(Ytable) ||
         throw(ArgumentError("Yfull must satisfy the Tables.jl interface"))
 
     Yfull = Tables.matrix(Ytable)
     names = Tables.columnnames(Ytable) .|> Symbol
-    SVAR(Yfull, p, names, A)
+    return SVAR(Yfull, p, names)
 end
 
 Phi(s::SVAR) = s.var.Phi

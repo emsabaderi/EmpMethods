@@ -8,17 +8,15 @@
 
 # %% helper functions
 
-function lagmatrix(Y::Matrix{Float64}, p::Int)
-    Y = ndims(Y) == 1 ? reshape(Y, :, 1) : Y
+@views function lagmatrix(Y::AbstractMatrix{T}, p::Int) where {T<:Real}
     t, k = size(Y)
     @assert t > p "More lags than observations"
-
-    X = fill(NaN, t, k * p)
-
+    n = t - p
+    X = Matrix{T}(undef, n, k * p)
     for i in 1:p
-        @views X[(i+1):t, (1:k).+k*(i-1)] .= Y[1:(t-i), :]
+        X[:, (1:k).+k*(i-1)] .= Y[p-i+1:t-i, :]
     end
-    return @views Y[p+1:end, :], @views X[p+1:end, :]
+    return Y[p+1:end, :], X
 end
 
 # %%
@@ -133,6 +131,10 @@ function autocov!(var::VAR; H=20)
     return nothing
 end
 
+function autocov!(svar::SVAR; H=20)
+    autocov!(svar.var; H=H)
+end
+
 # %%
 
 function autocorr!(var::VAR)
@@ -144,22 +146,16 @@ function autocorr!(var::VAR)
     return nothing
 end
 
+function autocorr!(svar::SVAR)
+    autocorr!(svar.var)
+end
+
 # %%
 
-# function longrun_impact(var::VAR{T}) where {T}
-#     Φs = var.Phi_blocks
-#     isnothing(Φs) && error("Phi_blocks is not computed. Run companion! on the VAR first.")
-
-#     k = size(Φs[1], 1)
-
-#     S = zero(Φs[1])
-#     for Φ in Φs
-#         S .+= Φ
-#     end
-
-#     C1 = inv(I(k) - S)
-#     return C1
-# end
+function shortrun!(svar::SVAR)
+    Sigma = svar.var.Sigma
+    svar.A = chol(Sigma)
+end
 
 
 # %%

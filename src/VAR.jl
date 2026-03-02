@@ -22,8 +22,9 @@ end
 # %% Constructors
 
 function VAR(Yfull::M, p::Int64, varnames::Vector{Symbol}) where {T<:Real,M<:AbstractMatrix{T}}
+    Yfull = copy(Yfull)
     Y, X = lagmatrix(Yfull, p)
-    t, k = size(Yfull)
+    t, k = size(Y)
     V = typeof(Y)
     return VAR{T,M,V}(
         Yfull, p, varnames,          #inputs
