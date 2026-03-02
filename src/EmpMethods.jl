@@ -12,7 +12,7 @@ include("utils.jl")
 
 export VAR
 export SVAR, Phi, Sigma, E, F, Q, Gamma, Rho, Y, X, k, p, t, A, U
-export lagmatrix, estimate!, phiblocks, companion!, autocov!, autocorr!, shortrun!, longrun!
+export lagmatrix, estimate!, phiblocks, companion!, autocov!, autocorr!, shortrun!, longrun!, imresp
 # export longrun_impact
 # export irf
 # export bootstrap

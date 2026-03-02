@@ -182,22 +182,28 @@ end
 
 # %%
 
-# function irf(s::SVAR{T}; horizon::Int=20) where {T}
-#     isnothing(s.A) && error("SVAR is not identified. A matrix is missing.")
+function imresp(v::VAR; horizon::Int=20)
+    Φ = v.Phi
+    Fmat = v.F
+    k = v.k
+    kp = size(Fmat, 1)
+    T = eltype(Φ)
 
-#     F = s.var.F
-#     A = s.A
-#     k = s.var.k
+    IRFs = Array{T}(undef, k, k, horizon + 1)
+    Fh = Matrix{T}(I, kp, kp)
+    for h in 0:horizon
+        IRFs[:, :, h+1] = Fh[1:k, 1:k]
+        Fh = Fh * Fmat
+    end
 
-#     IRFs = Array{T}(undef, k, k, horizon + 1)
+    return IRFs
+end
 
-#     IRFs[:, :, 1] = A
-
-#     Fpow = I(size(F, 1))
-#     for h in 1:horizon
-#         Fpow = Fpow * F
-#         IRFs[:, :, h+1] = Fpow[1:k, 1:k] * A
-#     end
-
-#     return IRFs
-# end
+function imresp(s::SVAR; horizon::Int=20)
+    isnothing(s.A) && error("SVAR not identified. Run shortrun! or longrun! first.")
+    IRFs = imresp(s.var; horizon=horizon)
+    for h in 1:size(IRFs, 3)
+        IRFs[:, :, h] = IRFs[:, :, h] * s.A
+    end
+    return IRFs
+end
