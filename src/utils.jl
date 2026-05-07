@@ -83,7 +83,7 @@ function companion!(var::VAR)
     IF = I(kp - k)
 
     for i in 0:(p-1)
-        F[1:k, (1:k).+i*k] = @view Phi[(1:k).+i*k, :]
+        F[1:k, (1:k).+i*k] = (@view Phi[(1:k).+i*k, :])''
     end
 
     if p > 1
@@ -171,10 +171,6 @@ function longrun!(svar::SVAR)
     IminPhi = I - PhiSum
     Q = IminPhi \ (Σ / IminPhi')
     Q = (Q + Q') / 2
-    @show IminPhi
-    @show Q
-    @show issymmetric(Q)
-    @show isposdef(Q)
     svar.A = IminPhi * cholesky(Q).L
     svar.U = (svar.A \ E(svar)')'
     return nothing
