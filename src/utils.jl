@@ -83,7 +83,7 @@ function companion!(var::VAR)
     IF = I(kp - k)
 
     for i in 0:(p-1)
-        F[1:k, (1:k).+i*k] = (@view Phi[(1:k).+i*k, :])''
+        F[1:k, (1:k).+i*k] = (@view Phi[(1:k).+i*k, :])'
     end
 
     if p > 1
